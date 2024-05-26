@@ -1,8 +1,31 @@
 import React from "react";
+import CanvasJSReact from "@canvasjs/react-charts";
+
+var CanvasJS = CanvasJSReact.CanvasJS;
+var CanvasJSChart = CanvasJSReact.CanvasJSChart;
+
+var dps = [
+  { x: 1, y: 10 },
+  { x: 2, y: 13 },
+  { x: 3, y: 18 },
+  { x: 4, y: 20 },
+  { x: 5, y: 17 },
+  { x: 6, y: 10 },
+  { x: 7, y: 13 },
+  { x: 8, y: 18 },
+  { x: 9, y: 20 },
+  { x: 10, y: 17 },
+];
+
+var xVal = dps.length + 1;
+var yVal = 15;
+var updateInterval = 1000;
 
 class App extends React.Component {
   constructor(props) {
     super(props);
+
+    this.updateChart = this.updateChart.bind(this);
 
     this.state = {
       csrf: "",
@@ -15,6 +38,7 @@ class App extends React.Component {
 
   componentDidMount = () => {
     this.getSession();
+    setInterval(this.updateChart, updateInterval);
   };
 
   getCSRF = () => {
@@ -87,6 +111,15 @@ class App extends React.Component {
         console.error(err);
       });
   };
+  updateChart() {
+    yVal = yVal + Math.round(5 + Math.random() * (-5 - 5));
+    dps.push({ x: xVal, y: yVal });
+    xVal++;
+    if (dps.length > 10) {
+      dps.shift();
+    }
+    this.chart.render();
+  }
 
   handlePasswordChange = (event) => {
     this.setState({ password: event.target.value });
@@ -150,6 +183,17 @@ class App extends React.Component {
   };
 
   render() {
+    const options = {
+      title: {
+        text: "Dynamic Line Chart",
+      },
+      data: [
+        {
+          type: "line",
+          dataPoints: dps,
+        },
+      ],
+    };
     if (!this.state.isAuthenticated) {
       return (
         <div className="container mt-3">
@@ -204,6 +248,12 @@ class App extends React.Component {
         <button className="btn btn-danger" onClick={this.logout}>
           Log out
         </button>
+        <div>
+          <CanvasJSChart
+            options={options}
+            onRef={(ref) => (this.chart = ref)}
+          />
+        </div>
       </div>
     );
   }
