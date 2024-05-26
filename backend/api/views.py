@@ -60,6 +60,51 @@ def whoami_view(request):
 ####################################################################################################
 
 
+def data_view(request):
+    match_url = "https://coinmarketcap.com/currencies/bitcoin/"
+
+    # Set the Chrome driver options
+    options = webdriver.ChromeOptions()
+    options.add_argument('--headless')
+    options.add_argument('--no-sandbox')
+    options.add_argument('--disable-dev-shm-usage')
+
+    # Start the Chrome driver
+    driver = webdriver.Chrome(options=options)
+
+    try:
+        driver.get(match_url)
+
+        # Wait for the price element to be present
+        wait = WebDriverWait(driver, 3)
+        price_element = wait.until(EC.presence_of_element_located(
+            (By.CSS_SELECTOR, 'span.sc-d1ede7e3-0.fsQm.base-text')))
+
+        # Extract the price text
+        price = price_element.text
+
+        # Use regex to remove the $ symbol and commas
+        price_cleaned = re.sub(r'[^\d.]', '', price)
+
+        # Convert the cleaned string to a float
+        price_float = float(price_cleaned)
+
+    except Exception as e:
+        # Handle exceptions if the elements are not found
+        price_float = str(e)
+
+    finally:
+        # Quit the driver
+        driver.quit()
+
+    if not request.user.is_authenticated:
+        return JsonResponse({'isAuthenticated': False})
+
+    # Return the price data as JSON
+    return JsonResponse({'price': price_float})
+
+
+"""
 def get_price(url):
     # Set the Chrome driver options
     options = webdriver.ChromeOptions()
@@ -74,7 +119,7 @@ def get_price(url):
 
     try:
         # Wait for the price element to be present
-        wait = WebDriverWait(driver, 10)
+        wait = WebDriverWait(driver, 3)
         price_element = wait.until(EC.presence_of_element_located(
             (By.CSS_SELECTOR, 'span.sc-d1ede7e3-0.fsQm.base-text')))
 
@@ -109,3 +154,4 @@ def data_view(request):
     # Decode JSON string to dictionary and extract price
     price = json.loads(result)['price']
     return JsonResponse({'price': price})
+"""
