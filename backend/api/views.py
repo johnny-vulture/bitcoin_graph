@@ -1,5 +1,7 @@
 import json
 import re
+import requests
+from bs4 import BeautifulSoup
 from django.contrib.auth import authenticate, login, logout
 from django.http import JsonResponse
 from django.middleware.csrf import get_token
@@ -61,6 +63,36 @@ def whoami_view(request):
 
 
 def data_view(request):
+    URL = "https://coinmarketcap.com/currencies/bitcoin/"
+    r = requests.get(URL)
+
+    soup = BeautifulSoup(r.content, 'html5lib')
+
+    # Select the price span using the correct CSS selector
+    price_element = soup.select_one("span.sc-d1ede7e3-0.fsQm.base-text")
+
+    if price_element:
+        price = price_element.text
+        # Use regex to remove the $ symbol and commas
+        price_cleaned = re.sub(r'[^\d.]', '', price)
+
+        # Convert the cleaned string to a float
+        price_float = float(price_cleaned)
+
+        # Create a dictionary to hold the data
+        price_data = {
+            "price": price_float
+        }
+
+        # Return the data as JSON response
+        return JsonResponse(price_data)
+    else:
+        # Return error message as JSON response
+        return JsonResponse({"error": "Price element not found"})
+
+
+"""
+def data_view(request):
     match_url = "https://coinmarketcap.com/currencies/bitcoin/"
 
     # Set the Chrome driver options
@@ -102,7 +134,7 @@ def data_view(request):
 
     # Return the price data as JSON
     return JsonResponse({'price': price_float})
-
+"""
 
 """
 def get_price(url):

@@ -1,96 +1,38 @@
-import React from "react";
+import React, { Component } from "react";
 import CanvasJSReact from "@canvasjs/react-charts";
 
-var CanvasJS = CanvasJSReact.CanvasJS;
-var CanvasJSChart = CanvasJSReact.CanvasJSChart;
+const CanvasJSChart = CanvasJSReact.CanvasJSChart;
 
-var dps = [
-  { x: 1, y: 10 },
-  { x: 2, y: 13 },
-  { x: 3, y: 18 },
-  { x: 4, y: 20 },
-  { x: 5, y: 17 },
-  { x: 6, y: 10 },
-  { x: 7, y: 13 },
-  { x: 8, y: 18 },
-  { x: 9, y: 20 },
-  { x: 10, y: 17 },
-];
-
-var xVal = dps.length + 1;
-var yVal = 15;
-var updateInterval = 1000;
-
-class App extends React.Component {
+class App extends Component {
   constructor(props) {
     super(props);
 
-    this.updateChart = this.updateChart.bind(this);
-
+    // Initialize component state
     this.state = {
-      csrf: "",
-      username: "",
-      password: "",
-      error: "",
       isAuthenticated: false,
+      dps: [],
     };
   }
 
-  componentDidMount = () => {
+  componentDidMount() {
+    // When component mounts, check session and fetch initial data
     this.getSession();
-    setInterval(this.updateChart, updateInterval);
-  };
-
-  getCSRF = () => {
-    fetch("http://localhost:8000/api/csrf/", {
-      credentials: "include",
-    })
-      .then((res) => {
-        let csrfToken = res.headers.get("X-CSRFToken");
-        this.setState({ csrf: csrfToken });
-        console.log(csrfToken);
-      })
-      .catch((err) => {
-        console.log(err);
-      });
-  };
+    // Set interval to update chart at regular intervals
+    setInterval(this.updateChart, 1000);
+  }
 
   getSession = () => {
-    fetch("http://localhost:8000/api/session/", {
-      credentials: "include",
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        console.log(data);
-        if (data.isAuthenticated) {
-          this.setState({ isAuthenticated: true });
-        } else {
-          this.setState({ isAuthenticated: false });
-          this.getCSRF();
-        }
-      })
-      .catch((err) => {
-        console.log(err);
-      });
+    // Fetch session data or authentication status
+    // You can implement this function according to your authentication logic
+    // For demo purposes, setting isAuthenticated to true
+    this.setState({ isAuthenticated: true });
+
+    // Fetch initial price data
+    this.fetchPrice();
   };
 
-  whoami = () => {
-    fetch("http://localhost:8000/api/whoami/", {
-      headers: {
-        "Content-Type": "application/json",
-      },
-      credentials: "include",
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        console.log("You are logged in as: " + data.username);
-      })
-      .catch((err) => {
-        console.log(err);
-      });
-  };
-
-  price = () => {
+  fetchPrice = () => {
+    // Fetch price data from API
     fetch("http://localhost:8000/api/price/", {
       method: "GET",
       headers: {
@@ -105,84 +47,51 @@ class App extends React.Component {
         return res.json();
       })
       .then((data) => {
-        console.log(data.price);
+        // Generate data points array based on fetched price data
+        this.generateDpsArray(data.price);
       })
       .catch((err) => {
         console.error(err);
       });
   };
-  updateChart() {
-    yVal = yVal + Math.round(5 + Math.random() * (-5 - 5));
-    dps.push({ x: xVal, y: yVal });
-    xVal++;
-    if (dps.length > 10) {
-      dps.shift();
+
+  generateDpsArray = (price) => {
+    // Generate data points array based on price
+    const dps = [];
+    for (let i = 0; i < 10; i++) {
+      let yValue;
+      if (i < 3) {
+        yValue = price + 100 * (3 - i);
+      } else if (i === 3) {
+        yValue = price;
+      } else {
+        yValue = price - 100 * (i - 3);
+      }
+      dps.push({ x: i + 1, y: yValue });
     }
-    this.chart.render();
-  }
-
-  handlePasswordChange = (event) => {
-    this.setState({ password: event.target.value });
+    // Update component state with new data points array
+    this.setState({ dps });
   };
 
-  handleUserNameChange = (event) => {
-    this.setState({ username: event.target.value });
-  };
-
-  isResponseOk(response) {
-    if (response.status >= 200 && response.status <= 299) {
-      return response.json();
-    } else {
-      throw Error(response.statusText);
+  updateChart = () => {
+    // Update chart only if user is authenticated and dps is available
+    if (this.state.isAuthenticated && this.state.dps.length > 0) {
+      // Generate new random data point
+      const newDataPoint = {
+        x: this.state.dps.length + 1,
+        y: this.state.dps[this.state.dps.length - 1].y + Math.round(5 + Math.random() * (-5 - 5)),
+      };
+      // Update data points array by removing first element and adding new data point
+      const newDps = [...this.state.dps.slice(1), newDataPoint];
+      // Update component state with updated data points array
+      this.setState({ dps: newDps });
     }
-  }
-
-  login = (event) => {
-    event.preventDefault();
-    fetch("http://localhost:8000/api/login/", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-CSRFToken": this.state.csrf,
-      },
-      credentials: "include",
-      body: JSON.stringify({
-        username: this.state.username,
-        password: this.state.password,
-      }),
-    })
-      .then(this.isResponseOk)
-      .then((data) => {
-        console.log(data);
-        this.setState({
-          isAuthenticated: true,
-          username: "",
-          password: "",
-          error: "",
-        });
-      })
-      .catch((err) => {
-        console.log(err);
-        this.setState({ error: "Wrong username or password." });
-      });
-  };
-
-  logout = () => {
-    fetch("http://localhost:8000/api/logout", {
-      credentials: "include",
-    })
-      .then(this.isResponseOk)
-      .then((data) => {
-        console.log(data);
-        this.setState({ isAuthenticated: false });
-        this.getCSRF();
-      })
-      .catch((err) => {
-        console.log(err);
-      });
   };
 
   render() {
+    const { isAuthenticated, dps } = this.state;
+
+    // Chart options with current data points
     const options = {
       title: {
         text: "Dynamic Line Chart",
@@ -194,66 +103,35 @@ class App extends React.Component {
         },
       ],
     };
-    if (!this.state.isAuthenticated) {
-      return (
-        <div className="container mt-3">
-          <h1>React Cookie Auth</h1>
-          <br />
-          <h2>Login</h2>
-          <form onSubmit={this.login}>
-            <div className="form-group">
-              <label htmlFor="username">Username</label>
-              <input
-                type="text"
-                className="form-control"
-                id="username"
-                name="username"
-                value={this.state.username}
-                onChange={this.handleUserNameChange}
-              />
-            </div>
-            <div className="form-group">
-              <label htmlFor="username">Password</label>
-              <input
-                type="password"
-                className="form-control"
-                id="password"
-                name="password"
-                value={this.state.password}
-                onChange={this.handlePasswordChange}
-              />
-              <div>
-                {this.state.error && (
-                  <small className="text-danger">{this.state.error}</small>
-                )}
-              </div>
-            </div>
-            <button type="submit" className="btn btn-primary">
-              Login
-            </button>
-          </form>
-        </div>
-      );
-    }
+
     return (
       <div className="container mt-3">
         <h1>React Cookie Auth</h1>
-        <p>You are logged in!</p>
-        <button className="btn btn-primary mr-2" onClick={this.whoami}>
-          WhoAmI
-        </button>
-        <button className="btn btn-primary mr-2" onClick={this.price}>
-          Price
-        </button>
-        <button className="btn btn-danger" onClick={this.logout}>
-          Log out
-        </button>
-        <div>
-          <CanvasJSChart
-            options={options}
-            onRef={(ref) => (this.chart = ref)}
-          />
-        </div>
+        {isAuthenticated ? (
+          <div>
+            <p>You are logged in!</p>
+            <button className="btn btn-primary mr-2" onClick={this.whoami}>
+              WhoAmI
+            </button>
+            <button className="btn btn-primary mr-2" onClick={this.price}>
+              Price
+            </button>
+            <button className="btn btn-danger" onClick={this.logout}>
+              Log out
+            </button>
+            <div>
+              <CanvasJSChart
+                options={options}
+                onRef={(ref) => (this.chart = ref)}
+              />
+            </div>
+          </div>
+        ) : (
+          <div>
+            <h2>Login</h2>
+            {/* Your login form goes here */}
+          </div>
+        )}
       </div>
     );
   }
